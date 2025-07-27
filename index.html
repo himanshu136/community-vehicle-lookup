@@ -132,10 +132,10 @@
                     const columns = row.split(',');
                     return {
                         house: columns[0]?.trim(),
-                        owner: columns[1]?.trim(),
-                        phone: columns[2]?.trim(),
-                        carNumber: columns[3]?.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''), // Standardize car number
-                        ownerType: columns[4]?.trim() // New: Owner Type
+                        ownerType: columns[1]?.trim(),
+                        owner: columns[2]?.trim(),
+                        carNumber: columns[4]?.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''), // Standardize car number
+                        phone: columns[3]?.trim()
                     };
                 });
                 console.log('Data loaded successfully:', vehicleData.length, 'records');
