@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Vehicle Lookup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Simple loading spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 md:p-8">
+
+        <div class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Vehicle Lookup</h1>
+            <p class="text-gray-500 mt-2">Enter a car number to find owner details.</p>
+        </div>
+
+        <div
+            class="flex items-center border-2 border-gray-200 rounded-lg focus-within:border-blue-500 transition-colors">
+            <input type="text" id="searchInput" placeholder="e.g., MH12AB1234"
+                class="w-full p-3 md:p-4 border-none bg-transparent focus:ring-0 text-lg uppercase"
+                oninput="this.value = this.value.toUpperCase()" onkeyup="handleKey(event)">
+            <button id="searchButton"
+                class="bg-blue-500 text-white font-semibold px-6 py-3 md:py-4 rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors">
+                Search
+            </button>
+        </div>
+
+        <div id="results" class="mt-6">
+            <div id="loader" class="hidden justify-center items-center py-4">
+                <div class="loader"></div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center border-t pt-6">
+            <p class="text-gray-600 mb-3">New resident or new vehicle?</p>
+            <a id="registerLink" href="#" target="_blank"
+                class="w-full block bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-colors text-center">
+                Register a New Vehicle
+            </a>
+        </div>
+    </div>
+
+    <footer class="text-center mt-8 text-gray-500 text-sm">
+        <p>Community Parking App</p>
+    </footer>
+
+    <script>
+        // --- --- --- --- --- --- --- --- --- --- --- ---
+        // --- CONFIGURATION - PASTE YOUR URLs HERE ---
+        // --- --- --- --- --- --- --- --- --- --- --- ---
+
+        // 1. Paste the Google Sheet CSV URL you got from "Publish to web" in Step 1.
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQos8ZFZH4v2e61k747ec_8MrzF-374BYL9qpLnDDS_JiP-iVgoBIkrqOIksJfJ_LeQVcd3iZ-26KgV/pub?gid=565540929&single=true&output=csv';
+
+        // 2. Paste the link to your Google Form for new registrations.
+        const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSehNKcBqmvIarR4deRYI8mIWqEKbrHpU6QWEnfiUpPsyUxMGA/viewform?usp=sharing&ouid=103670468367351682466';
+
+        // --- --- --- --- --- --- --- --- --- --- --- ---
+        // --- END OF CONFIGURATION ---
+        // --- --- --- --- --- --- --- --- --- --- --- ---
+
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const resultsDiv = document.getElementById('results');
+        const registerLink = document.getElementById('registerLink');
+        const loader = document.getElementById('loader');
+
+        let vehicleData = [];
+
+        // Set the registration link
+        if (GOOGLE_FORM_URL !== 'YOUR_GOOGLE_FORM_URL_HERE') {
+            registerLink.href = GOOGLE_FORM_URL;
+        } else {
+            registerLink.textContent = 'Registration Link Not Configured';
+            registerLink.classList.add('bg-gray-400', 'cursor-not-allowed');
+            registerLink.classList.remove('bg-green-500', 'hover:bg-green-600');
+        }
+
+
+        /**
+         * Fetches and parses the vehicle data from the published Google Sheet CSV.
+         */
+        async function fetchVehicleData() {
+            if (GOOGLE_SHEET_CSV_URL === 'YOUR_GOOGLE_SHEET_CSV_URL_HERE') {
+                resultsDiv.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                                            <p class="font-bold">Configuration Error</p>
+                                            <p>The admin needs to set the Google Sheet URL in the code.</p>
+                                         </div>`;
+                return;
+            }
+
+            loader.style.display = 'flex';
+            resultsDiv.innerHTML = ''; // Clear previous results
+
+            try {
+                const response = await fetch(GOOGLE_SHEET_CSV_URL);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok.');
+                }
+                const csvText = await response.text();
+                // Parse CSV data. Expected order: House Number, Owner Name, Phone, Car Number, Owner Type
+                vehicleData = csvText.split('\n').map(row => {
+                    const columns = row.split(',');
+                    return {
+                        house: columns[0]?.trim(),
+                        owner: columns[1]?.trim(),
+                        phone: columns[2]?.trim(),
+                        carNumber: columns[3]?.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''), // Standardize car number
+                        ownerType: columns[4]?.trim() // New: Owner Type
+                    };
+                });
+                console.log('Data loaded successfully:', vehicleData.length, 'records');
+            } catch (error) {
+                console.error('Error fetching or parsing data:', error);
+                resultsDiv.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                                            <p class="font-bold">Error</p>
+                                            <p>Could not load vehicle data. Check the URL or network.</p>
+                                         </div>`;
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        /**
+         * Performs the search based on user input.
+         */
+        function performSearch() {
+            // The input field itself is now set to uppercase, so we just trim and clean
+            const query = searchInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            resultsDiv.innerHTML = ''; // Clear previous results
+
+            if (!query) {
+                resultsDiv.innerHTML = `<div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md" role="alert">
+                                            <p>Please enter a vehicle number to search.</p>
+                                         </div>`;
+                return;
+            }
+
+            if (vehicleData.length === 0) {
+                resultsDiv.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                                            <p class="font-bold">No Data</p>
+                                            <p>No vehicle data has been loaded or approved yet.</p>
+                                         </div>`;
+                return;
+            }
+
+            // Find the result; carNumber is already trimmed and uppercased during data load
+            const result = vehicleData.find(vehicle => vehicle.carNumber === query);
+
+            if (result) {
+                resultsDiv.innerHTML = `
+                    <div class="bg-green-100 border border-green-200 p-4 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-bold text-green-800 mb-3">Vehicle Found</h3>
+                        <div class="space-y-2 text-gray-700">
+                            <p><strong>House No:</strong> <span class="text-lg font-semibold">${result.house}</span></p>
+                            <p><strong>Owner:</strong> <span class="text-lg font-semibold">${result.owner}</span></p>
+                            <p><strong>Phone:</strong> <span class="text-lg font-semibold">${result.phone}</span></p>
+                            <p><strong>Car No:</strong> <span class="text-lg font-semibold">${searchInput.value.trim().toUpperCase()}</span></p>
+                            ${result.ownerType ? `<p><strong>Owner Type:</strong> <span class="text-lg font-semibold">${result.ownerType}</span></p>` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="bg-orange-100 border border-orange-200 p-4 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-bold text-orange-800 mb-2">Not Found</h3>
+                        <p class="text-gray-700">No record found for vehicle number <strong>${searchInput.value.trim().toUpperCase()}</strong>.</p>
+                        <p class="text-gray-600 text-sm mt-2">Please check the number or register the vehicle if it's new.</p>
+                    </div>
+                `;
+            }
+        }
+
+        /**
+         * Handles the Enter key press in the input field.
+         */
+        function handleKey(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        }
+
+        // Add event listener to the search button
+        searchButton.addEventListener('click', performSearch);
+
+        // Initial data fetch when the page loads
+        window.onload = fetchVehicleData;
+
+    </script>
+</body>
+
+</html>
